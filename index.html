@@ -1,0 +1,647 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>Two-Hand Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one practice desk. Level rail on top, the keyboard seen from above in the middle, input + tempo + three modes below, then the verdict. */
+:root{
+  --bg:#eef0f3; --panel:#ffffff; --ink:#16181d; --muted:#5d6470; --line:#d5d9e0;
+  --ivory:#fbfbf8; --ebony:#1d1f24; --lh:#1f7a8c; --lh-soft:#d3eef2; --rh:#c4622d; --rh-soft:#f8e1d3;
+  --good:#2f8a4c; --warn:#b7791f; --bad:#c0392b;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121418; --panel:#1b1e24; --ink:#eceef2; --muted:#9aa2ae; --line:#2e333c;
+  --ivory:#e9e9e4; --ebony:#0b0c0e; --lh:#4fb6c9; --lh-soft:#173a41; --rh:#ec8a52; --rh-soft:#47291a;
+  --good:#5cc27c; --warn:#e2a64a; --bad:#ef6a5b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121418; --panel:#1b1e24; --ink:#eceef2; --muted:#9aa2ae; --line:#2e333c;
+  --ivory:#e9e9e4; --ebony:#0b0c0e; --lh:#4fb6c9; --lh-soft:#173a41; --rh:#ec8a52; --rh-soft:#47291a;
+  --good:#5cc27c; --warn:#e2a64a; --bad:#ef6a5b; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,5vw,40px);line-height:1.05;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:6px 0 0;max-width:62ch}
+.hand-l{color:var(--lh);font-weight:700}.hand-r{color:var(--rh);font-weight:700}
+.rail{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.lvl{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer;text-align:left;min-width:118px}
+.lvl b{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.lvl span{font-size:14px;font-weight:700}
+.lvl small{display:block;font-size:12px;color:var(--good);font-family:var(--mono)}
+.lvl[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.lvl:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--rh);outline-offset:2px}
+.desk{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;align-items:baseline}
+.head h2{font-family:var(--display);font-weight:800;font-size:26px;margin:0}
+.head .src{color:var(--muted);font-size:14px}
+.say{font-family:var(--mono);font-size:15px;background:var(--bg);border-radius:8px;padding:8px 12px}
+.grid{overflow-x:auto}
+.grid table{border-collapse:separate;border-spacing:4px;font-family:var(--mono);font-size:13px}
+.grid th{color:var(--muted);font-weight:500;text-align:left;padding-right:6px;white-space:nowrap}
+.grid td{min-width:38px;height:34px;text-align:center;border-radius:6px;background:var(--bg);color:var(--muted)}
+.grid td.on-r{background:var(--rh-soft);color:var(--rh);font-weight:700}
+.grid td.on-l{background:var(--lh-soft);color:var(--lh);font-weight:700}
+.grid td.hold{background:repeating-linear-gradient(90deg,transparent 0 4px,var(--line) 4px 5px)}
+.grid td.now{box-shadow:inset 0 0 0 2px var(--ink)}
+.grid tr.beats td{background:none;height:20px}
+.kb{position:relative}
+.kb svg{display:block;width:100%;height:auto;max-width:100%}
+.count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:72px;color:var(--ink);pointer-events:none;text-shadow:0 2px 0 var(--panel)}
+.inputs{display:flex;flex-direction:column;gap:8px;background:var(--bg);border-radius:12px;padding:12px}
+.inputs .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.inputs .lab{font-weight:700;margin-right:4px}
+.chip{font:inherit;font-size:14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--panel)}
+.inputs .status{margin:0;font-size:14px;color:var(--muted);max-width:75ch}
+.inputs .status.ok{color:var(--good)}.inputs .status.no{color:var(--bad)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.tempo{display:flex;align-items:center;gap:10px;font-family:var(--mono)}
+.tempo input{width:160px;accent-color:var(--ink)}
+.tempo output{min-width:72px;font-weight:700}
+.modes{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:700;border-radius:10px;border:1px solid var(--ink);background:var(--panel);color:var(--ink);padding:10px 14px;cursor:pointer}
+.btn.small{padding:6px 12px;font-size:14px}
+.btn.primary{background:var(--ink);color:var(--panel)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pad{font:inherit;font-weight:700;font-size:18px;border-radius:14px;border:2px solid currentColor;background:var(--panel);padding:26px 10px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.pad.l{color:var(--lh)}.pad.r{color:var(--rh)}
+.pad.hit{background:currentColor}
+.pad kbd{font-family:var(--mono);font-size:13px;display:block;font-weight:500;opacity:.8}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.steps li{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:14px;min-width:0}
+.steps li b{font-family:var(--mono);color:var(--muted);margin-right:6px}
+.result{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.verdict{font-family:var(--display);font-weight:800;font-size:22px;margin:0}
+.verdict.ok{color:var(--good)}.verdict.no{color:var(--bad)}
+.fix{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch}
+.streak{font-family:var(--mono);font-size:14px;color:var(--muted)}
+.chart{overflow-x:auto}
+.chart svg{display:block;min-width:560px;width:100%;height:auto}
+.legend{font-size:13px;color:var(--muted)}
+.check{margin:0;padding-left:20px;font-size:15px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Two hands, slowly, with a check</h1>
+    <p class="lede">The same exercises as Jazer Lee's levels in step 2, but slow, one level at a time, with a click and a check after every try. <span class="hand-l">Left hand</span> is teal, <span class="hand-r">right hand</span> is orange. The numbers on the keys are your fingers.</p>
+  </header>
+
+  <nav class="rail" id="rail" aria-label="Levels"></nav>
+
+  <section class="desk">
+    <div class="head">
+      <h2 id="lvlName">Level</h2>
+      <span class="src" id="lvlSrc"></span>
+    </div>
+    <div class="say" id="lvlSay"></div>
+    <p id="lvlTip" style="margin:0;max-width:70ch"></p>
+
+    <div class="grid"><table id="grid"></table></div>
+
+    <div class="kb"><svg id="kb" viewBox="0 0 700 190" role="img" aria-label="Keyboard from above, C position for both hands"></svg><div class="count" id="count"></div></div>
+
+    <div class="inputs">
+      <div class="row">
+        <span class="lab">Check with</span>
+        <button class="chip" id="inTap" type="button" aria-pressed="true">Tapping (F / J)</button>
+        <button class="chip" id="inMidi" type="button" aria-pressed="false">Keyboard by USB cable</button>
+        <button class="chip" id="inMic" type="button" aria-pressed="false">Microphone</button>
+        <button class="btn small" id="bCheck" type="button" hidden>Sound check</button>
+      </div>
+      <p class="status" id="inStatus" aria-live="polite">Tap the rhythm with key F (left hand) and key J (right hand), or the two pads below.</p>
+    </div>
+
+    <div class="controls">
+      <label class="tempo" for="bpm">Speed <input id="bpm" type="range" min="35" max="110" step="5" value="50"> <output id="bpmOut">50 bpm</output></label>
+      <div class="modes">
+        <button class="btn" id="bWatch" type="button">1 · Watch + count</button>
+        <button class="btn primary" id="bTap" type="button">2 · Test</button>
+        <button class="btn" id="bKeys" type="button">3 · Practise on the keys</button>
+        <button class="btn" id="bStop" type="button" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div class="pads" id="pads">
+      <button class="pad l" id="padL" type="button">Left hand<kbd>key F (or D, S, A)</kbd></button>
+      <button class="pad r" id="padR" type="button">Right hand<kbd>key J (or K, L)</kbd></button>
+    </div>
+
+    <ol class="steps">
+      <li><b>1</b>Watch it twice. Say the count line out loud with the click.</li>
+      <li><b>2</b>Test: one bar to count in, then the level runs twice. Repeat until it says <b style="font-family:inherit;color:var(--good)">Clean</b> 3 times in a row.</li>
+      <li><b>3</b>Practise on the keys with the click; keys flash green when right, red when wrong. Then 5 bpm faster, or the next level.</li>
+    </ol>
+
+    <div class="result" id="result">
+      <p class="verdict" id="verdict">No try yet</p>
+      <p class="streak" id="streak"></p>
+      <ul class="fix" id="fix"></ul>
+      <div class="chart" id="chart" hidden></div>
+      <p class="legend" id="legend" hidden>Circle = where the note belongs. Dot = what you played (timing shown 4× bigger so you can see it). Green = on time, amber = a bit off, red = off or wrong key (the letter is the key you hit). A cross is a note that should not be there.</p>
+      <div id="keysCheck" hidden>
+        <p style="margin:0 0 4px;font-weight:700">While you play, check:</p>
+        <ul class="check">
+          <li>Shared notes sound as <b>one</b> sound, not two quick ones.</li>
+          <li>The hand that plays less <b>rests on its key</b> in between. It does not lift into the air.</li>
+          <li>Fingers 4 and 5 are as loud as the others.</li>
+          <li>Eyes on the screen, not on your hands.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- music data ---------- */
+// white keys 0..13 = C3 D3 E3 F3 G3 A3 B3 C4 D4 E4 F4 G4 A4 B4. LH C position C3-G3 (pinky on C3), RH C4-G4 (thumb on middle C).
+var NAMES=["C","D","E","F","G","A","B"],SEMI=[0,2,4,5,7,9,11];
+var FREQ=[];for(var q=0;q<14;q++)FREQ.push(130.8128*Math.pow(2,(SEMI[q%7]+12*Math.floor(q/7))/12));
+function finger(hand,k){return hand==="L"?5-k:k-6;}
+function handOf(k){return k<7?"L":"R";}
+function kname(k){return k==null?"?":NAMES[((k%7)+7)%7];}
+function seq(hand,len,keys){var out=[],b=0;for(var i=0;i<keys.length;i++){out.push({hand:hand,beat:b,len:len,key:keys[i],f:finger(hand,keys[i])});b+=len;}return out;}
+var UP_DOWN_R=[7,8,9,10,11,10,9,8], UP_DOWN_L=[0,1,2,3,4,3,2,1];
+var LEVELS=[
+ {id:"t",name:"Together",src:"Jazer Lee level 1 · Superhuman exercise 1",meter:4,bars:2,
+  rh:seq("R",1,UP_DOWN_R),lh:seq("L",1,UP_DOWN_L),
+  tip:"Left pinky and right thumb start on C. Both hands climb the same notes, one octave apart. Press both keys as one sound."},
+ {id:"m",name:"Mirror",src:"Jazer Lee level 2 · Superhuman exercise 2",meter:4,bars:2,
+  rh:seq("R",1,UP_DOWN_R),lh:seq("L",1,[4,3,2,1,0,1,2,3]),
+  tip:"Both thumbs start together (left on G, right on C) and the hands move away from each other, then back. Same finger number in both hands every time."},
+ {id:"2a",name:"Left on one key",src:"New in-between step, before Jazer Lee level 3",meter:4,bars:2,
+  rh:seq("R",1,UP_DOWN_R),lh:seq("L",2,[0,0,0,0]),
+  tip:"The left pinky stays on C and plays only on beats 1 and 3. On 2 and 4 it rests on the key, no lifting. Only the right hand walks."},
+ {id:"2r",name:"Two for one",src:"Jazer Lee level 3 (RH plays 2, LH plays 1)",meter:4,bars:2,
+  rh:seq("R",1,UP_DOWN_R),lh:seq("L",2,[0,2,4,2]),
+  tip:"The left hand plays every second note of the right hand, the same note one octave lower: C, E, G, E with fingers 5, 3, 1, 3. Between notes it waits."},
+ {id:"2l",name:"Two for one, flipped",src:"Jazer Lee level 4 (LH plays 2, RH plays 1)",meter:4,bars:2,
+  rh:seq("R",2,[7,9,11,9]),lh:seq("L",1,UP_DOWN_L),
+  tip:"Now the left hand walks and the right waits: right plays C, E, G, E with fingers 1, 3, 5, 3 on beats 1 and 3 only."},
+ {id:"3r",name:"Three for one",src:"Jazer Lee level 5 (RH plays 3, LH plays 1)",meter:3,bars:4,
+  rh:seq("R",1,[7,8,9,8,9,10,9,10,11,10,9,8]),lh:seq("L",3,[0,1,2,1]),
+  tip:"Count in threes: 1 2 3. The left hand plays once per bar, on 1, and holds. Its note steps up with the right hand's first note: C, D, E, D."},
+ {id:"3l",name:"Three for one, flipped",src:"Jazer Lee level 6 (LH plays 3, RH plays 1)",meter:3,bars:4,
+  rh:seq("R",3,[7,8,9,8]),lh:seq("L",1,[0,1,2,1,2,3,2,3,4,3,2,1]),
+  tip:"The left hand plays three per bar, the right hand once, on 1: C, D, E, D with fingers 1, 2, 3, 2."},
+ {id:"4r",name:"Four for one",src:"Jazer Lee level 7 (RH plays 4, LH plays 1)",meter:4,bars:2,
+  rh:seq("R",1,UP_DOWN_R),lh:seq("L",4,[0,4]),
+  tip:"The left hand plays once per bar and holds for four counts: C with 5, then G with 1. The right hand walks up and down."},
+ {id:"4l",name:"Four for one, flipped",src:"Jazer Lee level 8 (LH plays 4, RH plays 1)",meter:4,bars:2,
+  rh:seq("R",4,[7,11]),lh:seq("L",1,UP_DOWN_L),
+  tip:"The right hand plays once per bar and holds: C with 1, then G with 5. The left hand walks."}
+];
+LEVELS.forEach(function(L){L.loop=L.meter*L.bars;});
+
+/* ---------- storage (per-viewer convenience only) ---------- */
+var KEY="twohand.v1", store={};
+try{store=JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){store={};}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){}}
+function rec(id){return store[id]||(store[id]={streak:0,best:0,bpm:50});}
+var CAL=store._cal||(store._cal={micFloor:null,r2:0.6,r3:0.3,micOff:0,oct:0,micChecked:false});
+
+/* ---------- elements ---------- */
+var $=function(id){return document.getElementById(id);};
+var rail=$("rail"),grid=$("grid"),kb=$("kb"),countEl=$("count"),bpm=$("bpm"),bpmOut=$("bpmOut");
+var bWatch=$("bWatch"),bTap=$("bTap"),bKeys=$("bKeys"),bStop=$("bStop"),padL=$("padL"),padR=$("padR");
+var cur=LEVELS[3];
+try{var last=localStorage.getItem(KEY+".lvl");LEVELS.forEach(function(L){if(L.id===last)cur=L;});}catch(e){}
+
+/* ---------- level rail ---------- */
+function drawRail(){
+  rail.innerHTML="";
+  LEVELS.forEach(function(L,i){
+    var b=document.createElement("button");b.type="button";b.className="lvl";b.id="lvl-"+L.id;
+    b.setAttribute("aria-pressed",L===cur?"true":"false");
+    var r=rec(L.id);
+    b.innerHTML="<b>LEVEL "+(i+1)+"</b><span></span>"+(r.best?"<small>clean at "+r.best+" bpm</small>":"<small style=\"color:var(--muted)\">not yet</small>");
+    b.querySelector("span").textContent=L.name;
+    b.onclick=function(){if(running)stop();cur=L;try{localStorage.setItem(KEY+".lvl",L.id);}catch(e){}bpm.value=rec(L.id).bpm||50;showLevel();};
+    rail.appendChild(b);
+  });
+}
+
+/* ---------- count grid ---------- */
+function starts(hand,beat){var list=hand==="R"?cur.rh:cur.lh;for(var i=0;i<list.length;i++)if(list[i].beat===beat)return list[i];return null;}
+function held(hand,beat){var list=hand==="R"?cur.rh:cur.lh;for(var i=0;i<list.length;i++){var e=list[i];if(beat>e.beat&&beat<e.beat+e.len)return e;}return null;}
+function drawGrid(){
+  var h="<tr class=\"beats\"><th></th>";
+  for(var b=0;b<cur.loop;b++)h+="<td>"+((b%cur.meter)+1)+"</td>";
+  h+="</tr>";
+  [["R","Right"],["L","Left"]].forEach(function(p){
+    h+="<tr><th class=\"hand-"+p[0].toLowerCase()+"\">"+p[1]+"</th>";
+    for(var b=0;b<cur.loop;b++){
+      var e=starts(p[0],b);
+      if(e)h+="<td id=\"g"+p[0]+b+"\" class=\"on-"+p[0].toLowerCase()+"\">"+NAMES[e.key%7]+"<sub>"+e.f+"</sub></td>";
+      else if(held(p[0],b))h+="<td id=\"g"+p[0]+b+"\" class=\"hold\" title=\"hold\"></td>";
+      else h+="<td id=\"g"+p[0]+b+"\">·</td>";
+    }
+    h+="</tr>";
+  });
+  grid.innerHTML=h;
+  var say=[];
+  for(var b=0;b<cur.loop;b++){var r=starts("R",b),l=starts("L",b);say.push(r&&l?"BOTH":r?"right":l?"left":"wait");}
+  $("lvlSay").textContent="Say: "+say.join(" · ");
+}
+
+/* ---------- keyboard ---------- */
+var NS="http://www.w3.org/2000/svg",WW=50,KH=170,keyEls=[],fingerEls=[],flashT={};
+function el(n,a){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function drawKb(){
+  kb.innerHTML="";keyEls=[];fingerEls=[];
+  for(var i=0;i<14;i++){
+    var r=el("rect",{x:i*WW+2,y:4,width:WW-4,height:KH,rx:5,fill:"var(--ivory)",stroke:"var(--line)","stroke-width":"1"});
+    kb.appendChild(r);keyEls.push(r);
+    if(i===7){kb.appendChild(el("circle",{cx:i*WW+WW/2,cy:KH-6,r:3,fill:"var(--muted)"}));}
+    var t=el("text",{x:i*WW+WW/2,y:KH-14,"text-anchor":"middle","font-family":"JetBrains Mono, monospace","font-size":"12",fill:"#8a8f98"});
+    t.textContent=NAMES[i%7]+(i<7?"3":"4");kb.appendChild(t);
+  }
+  [0,1,3,4,5,7,8,10,11,12].forEach(function(i){kb.appendChild(el("rect",{x:i*WW+WW*0.68,y:4,width:WW*0.64,height:KH*0.6,rx:3,fill:"var(--ebony)"}));});
+  for(var i=0;i<14;i++){
+    var hand=i<=4?"L":(i>=7&&i<=11?"R":null);
+    if(!hand){fingerEls.push(null);continue;}
+    var g=el("g",{});
+    var c=el("circle",{cx:i*WW+WW/2,cy:KH-48,r:15,fill:"none",stroke:hand==="L"?"var(--lh)":"var(--rh)","stroke-width":"2"});
+    var t=el("text",{x:i*WW+WW/2,y:KH-43,"text-anchor":"middle","font-family":"JetBrains Mono, monospace","font-size":"15","font-weight":"700",fill:hand==="L"?"var(--lh)":"var(--rh)"});
+    t.textContent=finger(hand,i);g.appendChild(c);g.appendChild(t);kb.appendChild(g);fingerEls.push({c:c,t:t,hand:hand});
+  }
+}
+function light(active){
+  for(var i=0;i<14;i++){
+    var a=active[i];
+    keyEls[i].setAttribute("fill",a?(a==="L"?"var(--lh-soft)":"var(--rh-soft)"):"var(--ivory)");
+    var f=fingerEls[i];
+    if(f){f.c.setAttribute("fill",a?(f.hand==="L"?"var(--lh)":"var(--rh)"):"none");f.t.setAttribute("fill",a?"var(--panel)":(f.hand==="L"?"var(--lh)":"var(--rh)"));}
+  }
+}
+function flash(k,color){
+  if(k==null||k<0||k>13)return;
+  var r=keyEls[k];r.setAttribute("stroke",color);r.setAttribute("stroke-width","5");
+  clearTimeout(flashT[k]);flashT[k]=setTimeout(function(){r.setAttribute("stroke","var(--line)");r.setAttribute("stroke-width","1");},280);
+}
+
+function showLevel(){
+  $("lvlName").textContent=cur.name;$("lvlSrc").textContent=cur.src;$("lvlTip").textContent=cur.tip;
+  bpmOut.textContent=bpm.value+" bpm";
+  drawRail();drawGrid();light({});clearResult();
+}
+
+/* ---------- audio + clock ---------- */
+var ctx=null,running=null,t0=0,spb=1,timer=null,raf=0,nextBeat=0,taps=[],endBeat=0,lat=0,clickPlan=null;
+function ensureCtx(){if(!ctx){var AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();}if(ctx.state==="suspended")ctx.resume();lat=(ctx.outputLatency||0)+(ctx.baseLatency||0);}
+function click(t,accent){var o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=accent?1760:1175;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(accent?0.45:0.28,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+0.06);}
+function tone(t,key,dur){var o=ctx.createOscillator(),g=ctx.createGain();o.type="triangle";o.frequency.value=FREQ[key];g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.22,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+Math.max(0.15,dur));o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+0.05);}
+function tick(hand){if(!ctx)return;var t=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain();o.type="square";o.frequency.value=hand==="L"?220:440;g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+0.05);}
+
+function start(mode){
+  ensureCtx();stop(true);
+  running=mode;spb=60/Number(bpm.value);
+  t0=ctx.currentTime+0.2+cur.meter*spb;nextBeat=-cur.meter;taps=[];
+  endBeat=mode==="tap"?cur.loop*2:Infinity;
+  [bWatch,bTap,bKeys,$("bCheck")].forEach(function(b){b.disabled=true;});bStop.disabled=false;
+  $("keysCheck").hidden=mode!=="keys";
+  if(mode==="tap"){$("verdict").textContent="Listen for the count-in…";$("verdict").className="verdict";$("fix").innerHTML="";$("chart").hidden=true;$("legend").hidden=true;$("streak").textContent="";}
+  timer=setInterval(schedule,25);schedule();raf=requestAnimationFrame(frame);
+  try{rec(cur.id).bpm=Number(bpm.value);save();}catch(e){}
+}
+function schedule(){
+  while(t0+nextBeat*spb<ctx.currentTime+0.12&&nextBeat<endBeat){
+    var t=t0+nextBeat*spb,b=nextBeat;
+    click(t,((b%cur.meter)+cur.meter)%cur.meter===0);
+    if(b>=0&&running==="watch"){var lb=b%cur.loop;cur.rh.concat(cur.lh).forEach(function(e){if(e.beat===lb)tone(t,e.key,e.len*spb*0.9);});}
+    nextBeat++;
+  }
+}
+function frame(){
+  if(!running)return;
+  var pos=(ctx.currentTime-lat-t0)/spb;
+  if(pos<0){countEl.textContent=String(Math.min(cur.meter,Math.floor(pos+cur.meter)+1));light({});}
+  else{
+    countEl.textContent="";
+    var lp=pos%cur.loop,act={};
+    cur.rh.concat(cur.lh).forEach(function(e){if(lp>=e.beat&&lp<e.beat+e.len)act[e.key]=e.hand;});
+    light(act);
+    var nb=Math.floor(lp);
+    for(var b=0;b<cur.loop;b++){["R","L"].forEach(function(h){var c=$("g"+h+b);if(c)c.classList.toggle("now",b===nb);});}
+    if(running==="tap"&&pos>=endBeat+0.1){finishTap();return;}
+  }
+  raf=requestAnimationFrame(frame);
+}
+function stop(silent){
+  clearInterval(timer);cancelAnimationFrame(raf);running=null;countEl.textContent="";light({});
+  document.querySelectorAll(".grid td.now").forEach(function(c){c.classList.remove("now");});
+  [bWatch,bTap,bKeys,$("bCheck")].forEach(function(b){b.disabled=false;});bStop.disabled=true;
+  if(!silent&&$("verdict").textContent==="Listen for the count-in…")clearResult();
+}
+
+/* ---------- every played note or tap arrives here ---------- */
+var hook=null;
+function played(ev){ // ev: {hand, t (ctx time), key|null, vel|null}
+  if(window.__heard)window.__heard.push({k:ev.key,h:ev.hand,t:Math.round(ev.t*1000)});
+  if(hook)hook(ev);
+  if(running==="tap"||running==="keys")ev.judge=judgeLive(ev);
+  if(running==="tap")taps.push(ev);
+  if(ev.key!=null)flash(ev.key,ev.judge||"var(--muted)");
+}
+function judgeLive(ev){
+  var pos=(ev.t-lat-t0)/spb;if(pos<-0.5)return null;
+  var lp=((pos%cur.loop)+cur.loop)%cur.loop,best=null,bd=1e9;
+  (ev.hand==="L"?cur.lh:cur.rh).forEach(function(e){var d=lp-e.beat;if(d>cur.loop/2)d-=cur.loop;if(d<-cur.loop/2)d+=cur.loop;if(Math.abs(d)<Math.abs(bd)){bd=d;best=e;}});
+  if(!best||Math.abs(bd)*spb>0.45*spb)return "var(--bad)";
+  if(ev.key!=null&&ev.key!==best.key)return "var(--bad)";
+  var ms=Math.abs(bd)*spb*1000;return ms<70?"var(--good)":ms<130?"var(--warn)":"var(--bad)";
+}
+
+/* ---------- tapping ---------- */
+function hit(hand){
+  if(inMode!=="tap")return;
+  ensureCtx();tick(hand);
+  var pad=hand==="L"?padL:padR;pad.classList.add("hit");setTimeout(function(){pad.classList.remove("hit");},90);
+  played({hand:hand,t:ctx.currentTime,key:null,vel:null});
+}
+var LK={f:1,d:1,s:1,a:1},RK={j:1,k:1,l:1,";":1};
+document.addEventListener("keydown",function(ev){
+  if(ev.repeat||ev.metaKey||ev.ctrlKey||ev.altKey)return;
+  var k=ev.key.toLowerCase();
+  if(LK[k]){hit("L");ev.preventDefault();}else if(RK[k]){hit("R");ev.preventDefault();}
+  else if(k===" "&&running){stop();ev.preventDefault();}
+});
+padL.addEventListener("pointerdown",function(e){e.preventDefault();hit("L");});
+padR.addEventListener("pointerdown",function(e){e.preventDefault();hit("R");});
+
+/* ---------- input: USB cable (Web MIDI) ---------- */
+var inMode="tap",midiAcc=null;
+var WHITE={0:0,2:1,4:2,5:3,7:4,9:5,11:6};
+function midiToKey(n){n+=CAL.oct||0;var w=WHITE[n%12];if(w==null)return {key:null,black:true,hand:n<60?"L":"R"};var k=(Math.floor(n/12)-1-3)*7+w;return {key:(k>=0&&k<=13)?k:null,hand:n<60?"L":"R",raw:n};}
+function onMidi(e){
+  var d=e.data,st=d[0]&0xf0;
+  if(st!==0x90||d[2]===0)return;
+  ensureCtx();
+  var t=ctx.currentTime-Math.max(0,(performance.now()-e.timeStamp)/1000);
+  var m=midiToKey(d[1]);
+  played({hand:m.hand,t:t,key:m.key,vel:d[2],raw:d[1]});
+}
+function midiNames(){var a=[];midiAcc.inputs.forEach(function(i){a.push(i.name);});return a;}
+function enableMidi(){
+  if(!navigator.requestMIDIAccess){status("no","This browser cannot read a USB keyboard. Use Chrome on the Mac, or choose Microphone.");return;}
+  status("","Asking for access to the keyboard…");
+  navigator.requestMIDIAccess().then(function(acc){
+    midiAcc=acc;
+    var wire=function(){acc.inputs.forEach(function(i){i.onmidimessage=onMidi;});var n=midiNames();
+      if(n.length)status("ok","Connected: "+n.join(", ")+". Press middle C once (Sound check) so I know your octave.");
+      else status("no","No keyboard found. Connect the CT-S300's square USB port to the Mac with a USB-B cable, then switch it on.");};
+    acc.onstatechange=wire;wire();
+  },function(){status("no","Access to the keyboard is blocked here. Open the Mac copy of this page in Chrome (Step 02 folder), or choose Microphone.");});
+}
+
+/* ---------- input: microphone ---------- */
+var MIC={stream:null,an:null,buf:null,timer:0,hist:[],pend:{},lastOn:{},binHz:1,win:0.17};
+function binMag(f){var lo=Math.ceil(f*Math.pow(2,-1/24)/MIC.binHz),hi=Math.floor(f*Math.pow(2,1/24)/MIC.binHz);if(hi<lo){lo=hi=Math.round(f/MIC.binHz);}var m=0;for(var j=lo;j<=hi;j++){var v=Math.pow(10,MIC.buf[j]/20);if(v>m)m=v;}return m;}
+function micMags(){
+  MIC.an.getFloatFrequencyData(MIC.buf);
+  var raw=FREQ.map(binMag),comp=raw.slice();
+  var peak=FREQ.map(function(f,k){return raw[k]>=binMag(f*Math.pow(2,-1/12))&&raw[k]>=binMag(f*Math.pow(2,1/12));});
+  for(var L=0;L<7;L++)[2,3].forEach(function(h){for(var k=7;k<14;k++)if(Math.abs(FREQ[k]-h*FREQ[L])<4)comp[k]=Math.max(0,comp[k]-(h===2?CAL.r2:CAL.r3)*raw[L]);});
+  return {raw:raw,comp:comp,peak:peak};
+}
+// Tested offline on synthetic two-hand recordings (60 and 90 bpm, with noise): 25/25 notes, 0 false, timing within 18 ms.
+function micTick(){
+  var t=ctx.currentTime,m=micMags(),H=MIC.hist;
+  H.push({t:t,raw:m.raw,comp:m.comp});if(H.length>70)H.shift();
+  var sorted=m.raw.slice().sort(function(a,b){return a-b;}),med=sorted[7],mx=Math.max.apply(null,m.comp);
+  for(var k=0;k<14;k++){
+    var c=m.comp[k],p=MIC.pend[k],i;
+    if(p){
+      if(t-p.t>=0.06){
+        delete MIC.pend[k];
+        var pk=0,all=0;for(i=0;i<H.length;i++)if(H[i].t>=p.t-0.05){if(H[i].comp[k]>pk)pk=H[i].comp[k];var am=Math.max.apply(null,H[i].comp);if(am>all)all=am;}
+        if(pk<0.25*all||!m.peak[k]||c<0.5*pk)continue;
+        var seg=H.filter(function(h){return h.t>=p.t-0.2;}),vi=0,vm=1e9;
+        for(i=0;i<seg.length;i++)if(seg[i].t<=p.t&&seg[i].comp[k]<vm){vm=seg[i].comp[k];vi=i;}
+        var half=p.base+0.5*(pk-p.base),tc=p.t;
+        for(i=vi;i<seg.length;i++)if(seg[i].comp[k]>=half){tc=seg[i].t;break;}
+        MIC.lastOn[k]=t;
+        played({hand:handOf(k),t:tc-MIC.win/2-(CAL.micOff||0),key:k,vel:null,mag:pk});
+      }
+      continue;
+    }
+    var from=Math.max(t-0.3,MIC.lastOn[k]||-9),base=1e9;
+    for(var j=0;j<H.length;j++)if(H[j].t>=from&&H[j].t<=t-0.03&&H[j].comp[k]<base)base=H[j].comp[k];
+    if(base===1e9)continue;
+    var floor=Math.max((CAL.micFloor?CAL.micFloor[k]:0)*4,10*med,0.15*mx,1e-7);
+    if(m.peak[k]&&c>floor&&c>base*2.0)MIC.pend[k]={t:t,base:base};
+  }
+}
+function enableMic(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){status("no","This page cannot use the microphone here. Open the Mac copy in Chrome (Step 02 folder).");return;}
+  ensureCtx();status("","Asking for the microphone…");
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).then(function(s){
+    MIC.stream=s;var src=ctx.createMediaStreamSource(s);MIC.an=ctx.createAnalyser();MIC.an.fftSize=8192;MIC.an.smoothingTimeConstant=0;
+    src.connect(MIC.an);MIC.buf=new Float32Array(MIC.an.frequencyBinCount);MIC.binHz=ctx.sampleRate/8192;MIC.win=8192/ctx.sampleRate;
+    clearInterval(MIC.timer);MIC.timer=setInterval(micTick,10);
+    status(CAL.micChecked?"ok":"",CAL.micChecked?"Listening. Keys you play flash on the screen.":"Listening. Run the Sound check once (40 seconds) so I can tell your left hand from your right.");
+  },function(){status("no","No microphone access on this page. Open the Mac copy in Chrome (Step 02 folder), or allow the microphone in the browser.");});
+}
+function disableMic(){clearInterval(MIC.timer);if(MIC.stream)MIC.stream.getTracks().forEach(function(t){t.stop();});MIC.stream=null;}
+
+/* ---------- input switching ---------- */
+function status(cls,txt){var s=$("inStatus");s.className="status "+cls;s.textContent=txt;}
+function setInput(m){
+  if(running)stop();
+  inMode=m;try{localStorage.setItem(KEY+".in",m);}catch(e){}
+  [["inTap","tap"],["inMidi","midi"],["inMic","mic"]].forEach(function(p){$(p[0]).setAttribute("aria-pressed",p[1]===m?"true":"false");});
+  $("pads").hidden=m!=="tap";$("bCheck").hidden=m==="tap";
+  if(m!=="mic")disableMic();
+  if(m==="tap")status("","Tap the rhythm with key F (left hand) and key J (right hand), or the two pads below.");
+  if(m==="midi")enableMidi();
+  if(m==="mic")enableMic();
+}
+$("inTap").onclick=function(){setInput("tap");};
+$("inMidi").onclick=function(){setInput("midi");};
+$("inMic").onclick=function(){setInput("mic");};
+
+/* ---------- sound check ---------- */
+function wait(s){return new Promise(function(r){setTimeout(r,s*1000);});}
+function say(t){$("verdict").textContent=t;$("verdict").className="verdict";}
+function median(a){if(!a.length)return null;var b=a.slice().sort(function(x,y){return x-y;});return b[Math.floor(b.length/2)];}
+function clicks(n,bpmv,count){var s=60/bpmv,t=ctx.currentTime+0.3;for(var i=0;i<n+count;i++)click(t+i*s,i%4===0);return {t:t+count*s,s:s};}
+function lock(on){[bWatch,bTap,bKeys,$("bCheck"),$("inTap"),$("inMidi"),$("inMic")].forEach(function(b){b.disabled=on;});}
+async function soundCheck(){
+  ensureCtx();lock(true);$("fix").innerHTML="";$("chart").hidden=true;$("legend").hidden=true;$("streak").textContent="";
+  try{
+  if(inMode==="midi"){
+    say("Press middle C with your right thumb");var got=null;hook=function(e){if(got==null)got=e.raw;};
+    for(var i=0;i<100&&got==null;i++)await wait(0.1);hook=null;
+    if(got==null){say("Nothing came in");$("fix").innerHTML="<li>No key arrived over the cable. Check the cable is in the CT-S300's square USB port and the keyboard is on.</li>";return;}
+    CAL.oct=(CAL.oct||0)+Math.round((60-(got+(CAL.oct||0)))/12)*12;save();
+    say("Ready ✓");$("fix").innerHTML="<li>Middle C found. Every key, finger and loudness now comes straight from the keyboard.</li>";status("ok","Connected and checked: "+midiNames().join(", ")+".");
+    return;
+  }
+  if(!MIC.an){say("Microphone is off");return;}
+  // 1. room
+  say("1 of 4 · Stay quiet for 2 seconds");await wait(0.4);
+  var rows=[],h0=MIC.hist.length;await wait(2);
+  MIC.hist.slice(-Math.min(MIC.hist.length,180)).forEach(function(r){rows.push(r.raw);});
+  CAL.micFloor=FREQ.map(function(_,k){return median(rows.map(function(r){return r[k];}))||1e-6;});
+  // 2. left C
+  say("2 of 4 · Left pinky: play the low C 3 times, slowly");
+  var r2=[],r3=[],evL=[];hook=function(e){evL.push(e.key);};
+  var until=ctx.currentTime+7;
+  while(ctx.currentTime<until){await wait(0.05);var last=MIC.hist[MIC.hist.length-1];if(last&&last.raw[0]>CAL.micFloor[0]*30&&last.raw[0]>3*Math.max(last.raw[1],last.raw[6])){r2.push(last.raw[7]/last.raw[0]);r3.push(last.raw[11]/last.raw[0]);}}
+  hook=null;
+  if(r2.length>5){CAL.r2=Math.min(1.5,median(r2)*1.15);CAL.r3=Math.min(1,median(r3)*1.15);}
+  var leftOk=evL.filter(function(k){return k===0;}).length;
+  // 3. middle C
+  say("3 of 4 · Right thumb: play middle C 3 times, slowly");
+  var evR=[];hook=function(e){evR.push(e.key);};await wait(7);hook=null;
+  var rightOk=evR.filter(function(k){return k===7;}).length,rightAsLeft=evR.filter(function(k){return k===0;}).length;
+  // 4. timing
+  say("4 of 4 · Right thumb: play middle C exactly on each click after the count of 4");
+  var cp=clicks(8,70,4),evT=[];hook=function(e){if(e.key===7)evT.push(e.t);};
+  await wait(0.3+12*cp.s+0.6);hook=null;
+  var errs=[];for(var i=0;i<8;i++){var ct=cp.t+i*cp.s+lat,best=null;evT.forEach(function(t){if(Math.abs(t-ct)<cp.s*0.45&&(best==null||Math.abs(t-ct)<Math.abs(best-ct)))best=t;});if(best!=null)errs.push(best-ct);}
+  if(errs.length>=4)CAL.micOff=Math.max(-0.2,Math.min(0.25,(CAL.micOff||0)+median(errs)));
+  var good=leftOk>=2&&rightOk>=2&&rightAsLeft<=1&&errs.length>=4;
+  CAL.micChecked=good;save();
+  say(good?"Ready ✓":"Not reliable yet");
+  var li=["Left C heard "+leftOk+" of 3"+(leftOk>=2?" ✓":" ✗ (put the iPad or Mac closer to the keyboard speakers, or turn the keyboard up)"),
+          "Middle C heard "+rightOk+" of 3"+(rightOk>=2?" ✓":" ✗")+(rightAsLeft>1?" · it was taken for the left hand "+rightAsLeft+" times ✗":""),
+          "Timing: "+errs.length+" of 8 clicks matched"+(errs.length>=4?", correction "+Math.round(CAL.micOff*1000)+" ms ✓":" ✗ (play on the clicks)")];
+  if(!good)li.push("Run the Sound check again. If it keeps failing, use Tapping, or a USB cable on the Mac (exact, no sound check needed).");
+  $("fix").innerHTML="";li.forEach(function(t){var x=document.createElement("li");x.textContent=t;$("fix").appendChild(x);});
+  status(good?"ok":"no",good?"Listening, sound check passed.":"Listening, but the sound check did not pass yet.");
+  } finally {hook=null;lock(false);}
+}
+$("bCheck").onclick=function(){soundCheck();};
+
+/* ---------- grading ---------- */
+function beatLabel(b){var lb=((b%cur.loop)+cur.loop)%cur.loop;return "bar "+(Math.floor(lb/cur.meter)+1)+" beat "+((lb%cur.meter)+1);}
+function finishTap(){var res=grade();stop(true);showResult(res);}
+function grade(){
+  var win=0.45*spb,out={L:{exp:[],extra:[]},R:{exp:[],extra:[]},pairs:[],wrong:[]};
+  ["L","R"].forEach(function(h){
+    var list=h==="L"?cur.lh:cur.rh,exp=[];
+    for(var lp=0;lp<2;lp++)list.forEach(function(e){exp.push({beat:e.beat+lp*cur.loop,t:t0+(e.beat+lp*cur.loop)*spb+lat,key:e.key,f:e.f,tap:null});});
+    var ts=taps.filter(function(x){return x.hand===h&&x.t>t0+lat-0.5*spb;}).map(function(x){return {t:x.t,key:x.key,vel:x.vel,used:false};});
+    exp.forEach(function(e){var best=null,bd=win;ts.forEach(function(x){var d=Math.abs(x.t-e.t)-(x.key!=null&&x.key===e.key?0.03:0);if(!x.used&&d<bd){bd=d;best=x;}});
+      if(best){best.used=true;e.tap=best.t;e.err=(best.t-e.t)*1000;e.got=best.key;e.vel=best.vel;if(best.key!=null&&best.key!==e.key)out.wrong.push({hand:h,beat:e.beat,exp:e.key,got:best.key});}});
+    out[h].exp=exp;
+    out[h].extra=ts.filter(function(x){return !x.used;}).map(function(x){return {t:x.t,key:x.key,beat:(x.t-lat-t0)/spb};});
+  });
+  out.R.exp.forEach(function(r){out.L.exp.forEach(function(l){if(l.beat===r.beat&&l.tap!=null&&r.tap!=null)out.pairs.push({beat:r.beat,diff:(l.tap-r.tap)*1000});});});
+  return out;
+}
+function stats(exp){var e=exp.filter(function(x){return x.tap!=null;}).map(function(x){return x.err;});if(!e.length)return null;var m=e.reduce(function(a,b){return a+b;},0)/e.length;var abs=e.reduce(function(a,b){return a+Math.abs(b);},0)/e.length;var sd=Math.sqrt(e.reduce(function(a,b){return a+(b-m)*(b-m);},0)/e.length);return {mean:m,abs:abs,sd:sd,n:e.length};}
+function hn(h){return h==="L"?"left hand":"right hand";}
+function noun(){return inMode==="tap"?"tap":"note";}
+function showResult(res){
+  var fixes=[],clean=true;
+  if(!taps.length){
+    $("verdict").textContent="Nothing heard";$("verdict").className="verdict no";
+    $("fix").innerHTML="<li>"+(inMode==="tap"?"Tap with key F (left hand) and key J (right hand) after the count-in, or use the two pads on a touch screen.":inMode==="midi"?"No keys came over the cable. Check the connection message above.":"The microphone heard no keys. Run the Sound check, and put the device closer to the keyboard.")+"</li>";return;}
+  // wrong keys, grouped
+  if(res.wrong.length){
+    clean=false;var g={};
+    res.wrong.forEach(function(w){var id=w.hand+w.exp+"-"+w.got;(g[id]=g[id]||{w:w,n:0,beats:[]}).n++;g[id].beats.push(beatLabel(w.beat));});
+    Object.keys(g).forEach(function(id){var x=g[id],w=x.w;var gf=w.got!=null&&handOf(w.got)===w.hand&&finger(w.hand,w.got)>=1&&finger(w.hand,w.got)<=5?" (finger "+finger(w.hand,w.got)+")":"";
+      fixes.push({w:110+x.n,t:"Wrong key: your "+hn(w.hand)+" played "+(w.got==null?"a key outside this hand position":kname(w.got))+gf+" where "+kname(w.exp)+" (finger "+finger(w.hand,w.exp)+") belongs, "+x.n+"× ("+x.beats.slice(0,2).join(", ")+"). Keep every finger on its own key, one key per finger."});});
+  }
+  ["L","R"].forEach(function(h){
+    var other=h==="L"?"R":"L";
+    if(res[h].extra.length){
+      clean=false;
+      var where={};res[h].extra.forEach(function(x){var b=Math.round(x.beat);var lb=((b%cur.loop)+cur.loop)%cur.loop;where[(lb%cur.meter)+1]=1;});
+      var beats=Object.keys(where).map(Number).sort();
+      var restBeats=[];for(var b=1;b<=cur.meter;b++){var playsHere=(h==="L"?cur.lh:cur.rh).some(function(e){return (e.beat%cur.meter)+1===b;});if(!playsHere)restBeats.push(b);}
+      var msg="Your "+hn(h)+" played "+res[h].extra.length+" extra "+noun()+(res[h].extra.length>1?"s":"")+" (on beat "+beats.join(" and ")+").";
+      if(restBeats.length&&beats.some(function(b){return restBeats.indexOf(b)>=0;}))msg+=" In this level it waits on beat "+restBeats.join(" and ")+": the "+hn(other)+" plays there alone. Say “"+(h==="L"?"right":"left")+"” on those beats and keep the "+hn(h)+" still on its key.";
+      else msg+=" It copied the other hand. Go slower and say the count line out loud.";
+      fixes.push({w:100+res[h].extra.length,t:msg});
+    }
+    var miss=res[h].exp.filter(function(x){return x.tap==null;});
+    if(miss.length){clean=false;fixes.push({w:90+miss.length,t:"Your "+hn(h)+" missed "+miss.length+" note"+(miss.length>1?"s":"")+" ("+miss.slice(0,3).map(function(x){return beatLabel(x.beat)+" "+kname(x.key);}).join(", ")+(miss.length>3?", …":"")+"). Look at the count line: the "+hn(h)+" plays on the "+(h==="L"?"teal":"orange")+" boxes."+(inMode==="mic"?" (If you did play them: run the Sound check again.)":"")});}
+  });
+  var bad=res.pairs.filter(function(p){return Math.abs(p.diff)>45;});
+  if(bad.length){
+    var avg=bad.reduce(function(a,p){return a+p.diff;},0)/bad.length;
+    if(bad.length>=Math.max(2,res.pairs.length/3))clean=false;
+    fixes.push({w:80+bad.length,t:"On the beats you play together, the hands landed "+Math.round(Math.abs(avg))+" ms apart; the "+(avg>0?"left":"right")+" hand comes late ("+bad.length+" of "+res.pairs.length+" times). Aim both fingers at the key together and let them drop as one sound."});
+  }
+  var sL=stats(res.L.exp),sR=stats(res.R.exp);
+  [["L",sL],["R",sR]].forEach(function(p){var s=p[1];if(!s)return;
+    if(Math.abs(s.mean)>70){clean=false;fixes.push({w:60,t:"Your "+hn(p[0])+" is "+(s.mean>0?"behind":"ahead of")+" the click by about "+Math.round(Math.abs(s.mean))+" ms on average. "+(s.mean>0?"Start the movement a little earlier: finger already above the key before the click.":"You are rushing. Wait for the click, it is slower than it feels.")});}
+    else if(s.sd>70){clean=false;fixes.push({w:50,t:"Your "+hn(p[0])+" is uneven (spread ±"+Math.round(s.sd)+" ms). Count out loud every beat, including the ones where it waits."});}
+  });
+  // loudness per finger (USB cable only)
+  ["L","R"].forEach(function(h){
+    var by={},all=[];res[h].exp.forEach(function(e){if(e.vel!=null&&e.got===e.key){(by[e.f]=by[e.f]||[]).push(e.vel);all.push(e.vel);}});
+    if(all.length<6)return;var avg=all.reduce(function(a,b){return a+b;},0)/all.length;
+    Object.keys(by).forEach(function(f){var v=by[f].reduce(function(a,b){return a+b;},0)/by[f].length;
+      if(by[f].length>=2&&v<avg*0.8)fixes.push({w:40,t:"Your "+hn(h)+" finger "+f+" plays softer than the others (loudness "+Math.round(v)+" against "+Math.round(avg)+"). Let it drop from the big knuckle with the same weight."});
+      if(by[f].length>=2&&v>avg*1.25)fixes.push({w:39,t:"Your "+hn(h)+" finger "+f+" plays louder than the others ("+Math.round(v)+" against "+Math.round(avg)+"). Same weight on every finger."});});
+  });
+  fixes.sort(function(a,b){return b.w-a.w;});
+  var r=rec(cur.id);
+  if(clean){r.streak++;if(Number(bpm.value)>(r.best||0)&&r.streak>=3)r.best=Number(bpm.value);}else r.streak=0;
+  save();drawRail();
+  $("verdict").textContent=clean?"Clean ✓":"Not yet: "+fixes.length+" thing"+(fixes.length>1?"s":"")+" to fix";
+  $("verdict").className="verdict "+(clean?"ok":"no");
+  var next=r.streak>=3?" Three clean in a row: practise it on the keys now (button 3), then go 5 bpm faster or to the next level.":"";
+  $("streak").textContent="Clean in a row at "+bpm.value+" bpm: "+r.streak+" of 3."+next;
+  var ul=$("fix");ul.innerHTML="";
+  if(!fixes.length){var li=document.createElement("li");li.textContent="Both hands on time and together. Left hand off by "+(sL?Math.round(sL.abs):0)+" ms on average, right hand by "+(sR?Math.round(sR.abs):0)+" ms.";ul.appendChild(li);}
+  fixes.slice(0,4).forEach(function(f,i){var li=document.createElement("li");li.textContent=(i===0&&!clean?"Fix first: ":"")+f.t;ul.appendChild(li);});
+  if(!clean&&Number(bpm.value)>40&&fixes.length>1){var li=document.createElement("li");li.textContent="Two or more problems at once means the speed is too high. Go 10 bpm slower and try again.";ul.appendChild(li);}
+  drawChart(res);
+}
+function drawChart(res){
+  var beats=cur.loop*2,W=Math.max(560,beats*44),H=150,x0=70,pw=W-x0-14,px=function(b){return x0+b*pw/beats;},zoom=4;
+  var s="<svg viewBox=\"0 0 "+W+" "+H+"\" role=\"img\" aria-label=\"Timing of each note per hand\">";
+  for(var b=0;b<=beats;b++){var bar=b%cur.meter===0;s+="<line x1=\""+px(b)+"\" x2=\""+px(b)+"\" y1=\"18\" y2=\""+(H-14)+"\" stroke=\"var(--line)\" stroke-width=\""+(bar?2:1)+"\"/>";if(b<beats)s+="<text x=\""+(px(b)+3)+"\" y=\"13\" font-size=\"11\" font-family=\"JetBrains Mono, monospace\" fill=\"var(--muted)\">"+((b%cur.meter)+1)+"</text>";}
+  [["R",55,"Right","var(--rh)"],["L",110,"Left","var(--lh)"]].forEach(function(L){
+    var h=L[0],y=L[1];
+    s+="<text x=\"6\" y=\""+(y+5)+"\" font-size=\"13\" font-weight=\"700\" fill=\""+L[3]+"\">"+L[2]+"</text>";
+    s+="<line x1=\""+x0+"\" x2=\""+(W-14)+"\" y1=\""+y+"\" y2=\""+y+"\" stroke=\"var(--line)\"/>";
+    res[h].exp.forEach(function(e){
+      var x=px(e.beat);
+      if(e.tap==null){s+="<circle cx=\""+x+"\" cy=\""+y+"\" r=\"9\" fill=\"none\" stroke=\"var(--bad)\" stroke-width=\"2\" stroke-dasharray=\"3 3\"/>";return;}
+      s+="<circle cx=\""+x+"\" cy=\""+y+"\" r=\"9\" fill=\"none\" stroke=\"var(--muted)\" stroke-width=\"1.5\"/>";
+      var a=Math.abs(e.err),wrong=e.got!=null&&e.got!==e.key,col=wrong?"var(--bad)":a<60?"var(--good)":a<120?"var(--warn)":"var(--bad)";
+      var dx=Math.max(-pw/beats*0.45,Math.min(pw/beats*0.45,(e.err/1000)/spb*pw/beats*zoom));
+      s+="<circle cx=\""+(x+dx)+"\" cy=\""+y+"\" r=\"5.5\" fill=\""+col+"\"/>";
+      if(wrong)s+="<text x=\""+(x+dx)+"\" y=\""+(y-13)+"\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"700\" font-family=\"JetBrains Mono, monospace\" fill=\"var(--bad)\">"+kname(e.got)+"</text>";
+      if(a>=60)s+="<text x=\""+(x+dx)+"\" y=\""+(y+24)+"\" text-anchor=\"middle\" font-size=\"10\" font-family=\"JetBrains Mono, monospace\" fill=\""+col+"\">"+(e.err>0?"+":"−")+Math.round(a)+"</text>";
+    });
+    res[h].extra.forEach(function(x){var cx=px(Math.max(0,Math.min(beats,x.beat)));s+="<path d=\"M"+(cx-6)+" "+(y-6)+"l12 12M"+(cx+6)+" "+(y-6)+"l-12 12\" stroke=\"var(--bad)\" stroke-width=\"2.5\" fill=\"none\"/>";});
+  });
+  s+="</svg>";
+  $("chart").innerHTML=s;$("chart").hidden=false;$("legend").hidden=false;
+}
+function clearResult(){
+  $("verdict").textContent="No try yet";$("verdict").className="verdict";
+  var r=rec(cur.id);$("streak").textContent=r.streak?"Clean in a row: "+r.streak+" of 3.":"";
+  $("fix").innerHTML="<li>Press <b>Test</b>. You get one bar of clicks to count in, then the level runs twice. After that this space shows what each hand did and what to fix first.</li>";
+  $("chart").hidden=true;$("legend").hidden=true;$("keysCheck").hidden=true;
+}
+
+bpm.addEventListener("input",function(){bpmOut.textContent=bpm.value+" bpm";});
+bWatch.onclick=function(){start("watch");};
+bTap.onclick=function(){start("tap");};
+bKeys.onclick=function(){start("keys");};
+bStop.onclick=function(){stop();};
+
+bpm.value=rec(cur.id).bpm||50;
+drawKb();showLevel();
+try{var im=localStorage.getItem(KEY+".in");if(im==="midi"||im==="mic"){inMode=im;[["inTap","tap"],["inMidi","midi"],["inMic","mic"]].forEach(function(p){$(p[0]).setAttribute("aria-pressed",p[1]===im?"true":"false");});$("pads").hidden=true;$("bCheck").hidden=false;status("","Press “"+(im==="midi"?"Keyboard by USB cable":"Microphone")+"” again to connect.");}}catch(e){}
+if(location.hash==="#selftest"){window.__heard=[];setInput("mic");var sp=document.createElement("pre");sp.id="selftest";document.body.appendChild(sp);setInterval(function(){sp.textContent=JSON.stringify({ctx:ctx&&ctx.state,sr:ctx&&ctx.sampleRate,st:$("inStatus").textContent,heard:window.__heard});},500);}
+})();
+</script>
+
+</body></html>
